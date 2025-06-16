@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Guess the Nintendo Game</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; color: #333; margin: 0; padding: 20px; }
+    .container { width: 80%; margin: 40px auto; background: #fff; border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 20px; }
+    h1 { text-align: center; }
+    button, input { display: block; margin: 10px auto; padding: 10px; font-size: 16px; }
+    button { border: none; background: #0066cc; color: #fff; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #005bb5; }
+    input { width: 80%; border: 1px solid #ccc; border-radius: 4px; }
+    #lives { text-align: center; font-weight: bold; margin-top: 10px; }
+    #big-answer { padding: 20px; background: #ffe; border: 2px solid #e91e63; border-radius: 8px; margin: 20px 0; }
+    #big-answer h2 { margin-top: 0; color: #e91e63; }
+    .search-box { margin: 20px auto; padding: 10px; background: #eaeaea; border-radius: 6px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: middle; }
+    th { background: #f0f0f0; }
+    img.cover { width: 50px; height: auto; border-radius: 4px; background: #eee; }
+    .bg-green { background: #c8e6c9; }
+    .bg-red   { background: #ffcdd2; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Guess the Nintendo Game</h1>
+    <button id="new-game">New Random Game</button>
+    <div id="lives">Lives: 10</div>
+    <div id="big-answer"></div>
+
+    <div class="search-box">
+      <input id="game-search" list="games-list" placeholder="Search games...">
+      <button id="search-btn">Validate</button>
+      <table id="search-results">
+        <thead>
+          <tr>
+            <th>Cover</th><th>Name (ID)</th><th>Year</th><th>Companies</th>
+            <th>Genres</th><th>Platforms</th><th>Game Modes</th><th>Franchises</th><th>Themes</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="nintendo_games_slim.js"></script>
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    let currentGame, lives;
+    const PLACEHOLDER_COVER = 'https://via.placeholder.com/50x50?text=?';
+
+    function formatDate(ts) {
+      return ts ? new Date(ts*1000).toISOString().slice(0,10) : '';
+    }
+    function extractYear(dateStr) {
+      return dateStr ? parseInt(dateStr.slice(0,4)) : null;
+    }
+    function updateLives() {
+      document.getElementById('lives').textContent = 'Lives: ' + lives;
+    }
+    function clearBigAnswer() {
+      document.getElementById('big-answer').innerHTML = '';
+    }
+    function showBigAnswerGame(game, title) {
+      const date = formatDate(game.first_release_date);
+      const year = extractYear(date) || '—';
+      const comps = [...new Set((game.involved_companies||[]).map(ic=>ic.company?.name).filter(Boolean))].join(', ');
+      const genres = (game.genres||[]).map(x=>x.name).join(', ');
+      const plats  = (game.platforms||[]).map(x=>x.name).join(', ');
+      const modes  = (game.game_modes||[]).map(x=>x.name).join(', ');
+      const frchs  = (game.franchises||[]).map(x=>x.name).join(', ');
+      const thms   = (game.themes||[]).map(x=>x.name).join(', ');
+      document.getElementById('big-answer').innerHTML = `
+        <h2>${title}</h2>
+        <p><strong>Name:</strong> ${game.name} (${game.id})</p>
+        <p><strong>Year:</strong> ${year}</p>
+        ${comps?`<p><strong>Companies:</strong> ${comps}</p>`: ''}
+        ${genres?`<p><strong>Genres:</strong> ${genres}</p>`: ''}
+        ${plats?`<p><strong>Platforms:</strong> ${plats}</p>`: ''}
+        ${modes?`<p><strong>Game Modes:</strong> ${modes}</p>`: ''}
+        ${frchs?`<p><strong>Franchises:</strong> ${frchs}</p>`: ''}
+        ${thms?`<p><strong>Themes:</strong> ${thms}</p>`: ''}
+      `;
+    }
+
+    function pickRandom() {
+      currentGame = games[Math.floor(Math.random()*games.length)];
+    }
+    function startGame() {
+      pickRandom();
+      lives = 10; updateLives();
+      document.getElementById('search-btn').style.display = 'block';
+      document.querySelector('#search-results tbody').innerHTML = '';
+      clearBigAnswer();
+      window.scrollTo({ top:0, behavior:'smooth' });
+    }
+
+    // datalist
+    const dl=document.createElement('datalist'); dl.id='games-list';
+    games.forEach(g=>{ let o=document.createElement('option'); o.value=g.name; dl.append(o); });
+    document.body.append(dl);
+
+    function colorArr(td, guessArr=[], answerSet=new Set()) {
+      const any = Array.isArray(guessArr) && guessArr.some(v=>answerSet.has(v));
+      const all = Array.isArray(guessArr) && guessArr.length===answerSet.size && guessArr.every(v=>answerSet.has(v));
+      td.classList.add(all?'bg-green':'bg-red');
+    }
+
+    document.getElementById('new-game').addEventListener('click', startGame);
+
+    document.getElementById('search-btn').addEventListener('click', ()=>{
+      const inp=document.getElementById('game-search');
+      const guess=inp.value.trim(); inp.value='';
+      const game=games.find(g=>g.name===guess);
+      const tbody=document.querySelector('#search-results tbody');
+      if(!game) return console.error('No match:', guess);
+      if([...tbody.querySelectorAll('tr')].some(tr=>tr.cells[1].textContent.includes(`(${game.id})`)))
+        return console.error('Already guessed:', guess);
+
+      // prepare data
+      const dateVal=formatDate(game.first_release_date);
+      const guessYear=extractYear(dateVal);
+      const answerYear=extractYear(formatDate(currentGame.first_release_date));
+      // build arrays:
+      const guessArrs=[
+        [...new Set((game.involved_companies||[]).map(ic=>ic.company?.name).filter(Boolean))],
+        (game.genres||[]).map(x=>x.name),
+        (game.platforms||[]).map(x=>x.name),
+        (game.game_modes||[]).map(x=>x.name),
+        (game.franchises||[]).map(x=>x.name),
+        (game.themes||[]).map(x=>x.name)
+      ];
+      const answerSets=[
+        new Set((currentGame.involved_companies||[]).map(ic=>ic.company?.name).filter(Boolean)),
+        new Set((currentGame.genres||[]).map(x=>x.name)),
+        new Set((currentGame.platforms||[]).map(x=>x.name)),
+        new Set((currentGame.game_modes||[]).map(x=>x.name)),
+        new Set((currentGame.franchises||[]).map(x=>x.name)),
+        new Set((currentGame.themes||[]).map(x=>x.name))
+      ];
+
+      // build row
+      const row=document.createElement('tr'),
+            coverUrl=game.cover?.url?`https:${game.cover.url}`:PLACEHOLDER_COVER,
+            cells=[
+        `<img class="cover" src="${coverUrl}">`,
+        `${game.name} (${game.id})`,
+        guessYear!==null?guessYear:'—',
+        guessArrs[0].join(', '), guessArrs[1].join(', '),
+        guessArrs[2].join(', '), guessArrs[3].join(', '),
+        guessArrs[4].join(', '), guessArrs[5].join(', ')
+      ];
+      cells.forEach(html=>{ let td=document.createElement('td'); td.innerHTML=html; td.style.opacity=0; row.append(td); });
+      tbody.append(row);
+
+      // reveal & color
+      row.querySelectorAll('td').forEach((td,i)=>{
+        setTimeout(()=>{
+          td.style.transition='opacity .2s'; td.style.opacity=1;
+          if(i===1){
+            const correct=game.name===currentGame.name;
+            td.classList.add(correct?'bg-green':'bg-red');
+            row.cells[0].classList.add(correct?'bg-green':'bg-red');
+            if(correct){
+              showBigAnswerGame(currentGame,'🎉 You found it!');
+              document.getElementById('search-btn').style.display='none';
+            }
+          }
+          else if(i===2){
+            if(guessYear===answerYear){
+              td.classList.add('bg-green');
+            } else {
+              td.classList.add('bg-red');
+              // arrow
+              td.innerHTML = `${guessYear} ${guessYear>answerYear?'▼':'▲'}`;
+            }
+          }
+          else if(i>=3){
+            colorArr(td, guessArrs[i-3], answerSets[i-3]);
+          }
+          window.scrollTo(0,document.body.scrollHeight);
+        }, i*50);
+      });
+
+      if(game.name!==currentGame.name){
+        lives--; updateLives();
+        if(lives<=0){
+          showBigAnswerGame(currentGame,'💀 You lose! It was:');
+          document.getElementById('search-btn').style.display='none';
+        }
+      }
+    });
+
+    startGame();
+  });
+  </script>
+</body>
+</html>

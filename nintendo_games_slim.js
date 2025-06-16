@@ -1,4 +1,4 @@
-window.games = [
+[
   {
     "id": 358,
     "name": "Super Mario Bros.",
