@@ -13,22 +13,26 @@
     button { border: none; background: #0066cc; color: #fff; border-radius: 4px; cursor: pointer; }
     button:hover { background: #005bb5; }
     input { width: 80%; border: 1px solid #ccc; border-radius: 4px; }
-    #lives { text-align: center; font-weight: bold; margin-top: 10px; }
-    #big-answer { padding: 20px; background: #ffe; border: 2px solid #e91e63; border-radius: 8px; margin: 20px 0; }
+    #game-info { margin: 20px 0; }
+    #lives { font-weight: bold; margin-top: 10px; text-align: center; }
+    #big-answer { padding: 20px; background: #ffe; border: 2px solid #e91e63;
+                  border-radius: 8px; margin: 20px 0; text-align: center; }
     #big-answer h2 { margin-top: 0; color: #e91e63; }
     .search-box { margin: 20px auto; padding: 10px; background: #eaeaea; border-radius: 6px; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: middle; }
     th { background: #f0f0f0; }
     img.cover { width: 50px; height: auto; border-radius: 4px; background: #eee; }
-    .bg-green { background: #c8e6c9; }
-    .bg-red   { background: #ffcdd2; }
+    .bg-green  { background: #c8e6c9; }
+    .bg-yellow { background: #fff9c4; }
+    .bg-red    { background: #ffcdd2; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Guess the Nintendo Game</h1>
+    <h1>Random Nintendo Game</h1>
     <button id="new-game">New Random Game</button>
+    <div id="game-info"><p>Loading...</p></div>
     <div id="lives">Lives: 10</div>
     <div id="big-answer"></div>
 
@@ -47,7 +51,7 @@
     </div>
   </div>
 
-  <script src="../nintendo_games_slim.js"></script>
+  <script src="nintendo_games_slim.js"></script>
   <script>
   document.addEventListener('DOMContentLoaded', () => {
     let currentGame, lives;
@@ -57,7 +61,7 @@
       return ts ? new Date(ts*1000).toISOString().slice(0,10) : '';
     }
     function extractYear(dateStr) {
-      return dateStr ? parseInt(dateStr.slice(0,4)) : null;
+      return dateStr ? parseInt(dateStr.slice(0,4), 10) : null;
     }
     function updateLives() {
       document.getElementById('lives').textContent = 'Lives: ' + lives;
@@ -66,24 +70,23 @@
       document.getElementById('big-answer').innerHTML = '';
     }
     function showBigAnswerGame(game, title) {
-      const date = formatDate(game.first_release_date);
-      const year = extractYear(date) || '—';
-      const comps = [...new Set((game.involved_companies||[]).map(ic=>ic.company?.name).filter(Boolean))].join(', ');
-      const genres = (game.genres||[]).map(x=>x.name).join(', ');
-      const plats  = (game.platforms||[]).map(x=>x.name).join(', ');
-      const modes  = (game.game_modes||[]).map(x=>x.name).join(', ');
-      const frchs  = (game.franchises||[]).map(x=>x.name).join(', ');
-      const thms   = (game.themes||[]).map(x=>x.name).join(', ');
+      const year = extractYear(formatDate(game.first_release_date)) || '—';
+      const comps   = [...new Set((game.involved_companies||[]).map(ic=>ic.company?.name).filter(Boolean))].join(', ');
+      const genres  = (game.genres||[]).map(x=>x.name).join(', ');
+      const plats   = (game.platforms||[]).map(x=>x.name).join(', ');
+      const modes   = (game.game_modes||[]).map(x=>x.name).join(', ');
+      const frchs   = (game.franchises||[]).map(x=>x.name).join(', ');
+      const thms    = (game.themes||[]).map(x=>x.name).join(', ');
       document.getElementById('big-answer').innerHTML = `
         <h2>${title}</h2>
         <p><strong>Name:</strong> ${game.name} (${game.id})</p>
         <p><strong>Year:</strong> ${year}</p>
-        ${comps?`<p><strong>Companies:</strong> ${comps}</p>`: ''}
-        ${genres?`<p><strong>Genres:</strong> ${genres}</p>`: ''}
-        ${plats?`<p><strong>Platforms:</strong> ${plats}</p>`: ''}
-        ${modes?`<p><strong>Game Modes:</strong> ${modes}</p>`: ''}
-        ${frchs?`<p><strong>Franchises:</strong> ${frchs}</p>`: ''}
-        ${thms?`<p><strong>Themes:</strong> ${thms}</p>`: ''}
+        ${comps?`<p><strong>Companies:</strong> ${comps}</p>`:''}
+        ${genres?`<p><strong>Genres:</strong> ${genres}</p>`:''}
+        ${plats?`<p><strong>Platforms:</strong> ${plats}</p>`:''}
+        ${modes?`<p><strong>Game Modes:</strong> ${modes}</p>`:''}
+        ${frchs?`<p><strong>Franchises:</strong> ${frchs}</p>`:''}
+        ${thms?`<p><strong>Themes:</strong> ${thms}</p>`:''}
       `;
     }
 
@@ -93,40 +96,69 @@
     function startGame() {
       pickRandom();
       lives = 10; updateLives();
+      clearBigAnswer();
+      showGameInfo();
       document.getElementById('search-btn').style.display = 'block';
       document.querySelector('#search-results tbody').innerHTML = '';
-      clearBigAnswer();
       window.scrollTo({ top:0, behavior:'smooth' });
     }
 
-    // datalist
-    const dl=document.createElement('datalist'); dl.id='games-list';
-    games.forEach(g=>{ let o=document.createElement('option'); o.value=g.name; dl.append(o); });
+    function showGameInfo() {
+      const g = currentGame;
+      const year = extractYear(formatDate(g.first_release_date)) || '—';
+      const comps   = [...new Set((g.involved_companies||[]).map(ic=>ic.company?.name).filter(Boolean))].join(', ');
+      const genres  = (g.genres||[]).map(x=>x.name).join(', ');
+      const plats   = (g.platforms||[]).map(x=>x.name).join(', ');
+      const modes   = (g.game_modes||[]).map(x=>x.name).join(', ');
+      const frchs   = (g.franchises||[]).map(x=>x.name).join(', ');
+      const thms    = (g.themes||[]).map(x=>x.name).join(', ');
+      document.getElementById('game-info').innerHTML = `
+        <div><strong>Name:</strong> ${g.name} (${g.id})</div>
+        <div><strong>Year:</strong> ${year}</div>
+        ${comps?`<div><strong>Companies:</strong> ${comps}</div>`:''}
+        ${genres?`<div><strong>Genres:</strong> ${genres}</div>`:''}
+        ${plats?`<div><strong>Platforms:</strong> ${plats}</div>`:''}
+        ${modes?`<div><strong>Game Modes:</strong> ${modes}</div>`:''}
+        ${frchs?`<div><strong>Franchises:</strong> ${frchs}</div>`:''}
+        ${thms?`<div><strong>Themes:</strong> ${thms}</div>`:''}
+      `;
+    }
+
+    // build datalist
+    const dl = document.createElement('datalist');
+    dl.id = 'games-list';
+    games.forEach(g => {
+      const o = document.createElement('option');
+      o.value = g.name;
+      dl.append(o);
+    });
     document.body.append(dl);
 
-    function colorArr(td, guessArr=[], answerSet=new Set()) {
-      const any = Array.isArray(guessArr) && guessArr.some(v=>answerSet.has(v));
-      const all = Array.isArray(guessArr) && guessArr.length===answerSet.size && guessArr.every(v=>answerSet.has(v));
-      td.classList.add(all?'bg-green':'bg-red');
+    function colorArr(td, guessArr = [], answerSet = new Set()) {
+      if (!Array.isArray(guessArr) || answerSet.size === 0) {
+        td.classList.add('bg-red');
+        return;
+      }
+      const any = guessArr.some(v => answerSet.has(v));
+      const all = guessArr.length === answerSet.size && guessArr.every(v => answerSet.has(v));
+      td.classList.add(all ? 'bg-green' : any ? 'bg-yellow' : 'bg-red');
     }
 
     document.getElementById('new-game').addEventListener('click', startGame);
 
-    document.getElementById('search-btn').addEventListener('click', ()=>{
-      const inp=document.getElementById('game-search');
-      const guess=inp.value.trim(); inp.value='';
-      const game=games.find(g=>g.name===guess);
-      const tbody=document.querySelector('#search-results tbody');
-      if(!game) return console.error('No match:', guess);
-      if([...tbody.querySelectorAll('tr')].some(tr=>tr.cells[1].textContent.includes(`(${game.id})`)))
+    document.getElementById('search-btn').addEventListener('click', () => {
+      const inp = document.getElementById('game-search');
+      const guess = inp.value.trim();
+      inp.value = '';
+      const game = games.find(g => g.name === guess);
+      const tbody = document.querySelector('#search-results tbody');
+      if (!game) return console.error('No match:', guess);
+      if ([...tbody.querySelectorAll('tr')].some(tr => tr.cells[1].textContent.includes(`(${game.id})`)))
         return console.error('Already guessed:', guess);
 
-      // prepare data
-      const dateVal=formatDate(game.first_release_date);
-      const guessYear=extractYear(dateVal);
-      const answerYear=extractYear(formatDate(currentGame.first_release_date));
-      // build arrays:
-      const guessArrs=[
+      const guessYear  = extractYear(formatDate(game.first_release_date));
+      const answerYear = extractYear(formatDate(currentGame.first_release_date));
+      const guessArrs  = [
         [...new Set((game.involved_companies||[]).map(ic=>ic.company?.name).filter(Boolean))],
         (game.genres||[]).map(x=>x.name),
         (game.platforms||[]).map(x=>x.name),
@@ -134,7 +166,7 @@
         (game.franchises||[]).map(x=>x.name),
         (game.themes||[]).map(x=>x.name)
       ];
-      const answerSets=[
+      const answerSets = [
         new Set((currentGame.involved_companies||[]).map(ic=>ic.company?.name).filter(Boolean)),
         new Set((currentGame.genres||[]).map(x=>x.name)),
         new Set((currentGame.platforms||[]).map(x=>x.name)),
@@ -144,53 +176,59 @@
       ];
 
       // build row
-      const row=document.createElement('tr'),
-            coverUrl=game.cover?.url?`https:${game.cover.url}`:PLACEHOLDER_COVER,
-            cells=[
+      const row = document.createElement('tr');
+      const coverUrl = game.cover?.url ? `https:${game.cover.url}` : PLACEHOLDER_COVER;
+      const cells = [
         `<img class="cover" src="${coverUrl}">`,
         `${game.name} (${game.id})`,
-        guessYear!==null?guessYear:'—',
-        guessArrs[0].join(', '), guessArrs[1].join(', '),
-        guessArrs[2].join(', '), guessArrs[3].join(', '),
-        guessArrs[4].join(', '), guessArrs[5].join(', ')
+        guessYear !== null ? guessYear : '—',
+        guessArrs[0].join(', '),
+        guessArrs[1].join(', '),
+        guessArrs[2].join(', '),
+        guessArrs[3].join(', '),
+        guessArrs[4].join(', '),
+        guessArrs[5].join(', ')
       ];
-      cells.forEach(html=>{ let td=document.createElement('td'); td.innerHTML=html; td.style.opacity=0; row.append(td); });
+      cells.forEach(html => {
+        const td = document.createElement('td');
+        td.innerHTML = html;
+        td.style.opacity = 0;
+        row.append(td);
+      });
       tbody.append(row);
 
-      // reveal & color
-      row.querySelectorAll('td').forEach((td,i)=>{
-        setTimeout(()=>{
-          td.style.transition='opacity .2s'; td.style.opacity=1;
-          if(i===1){
-            const correct=game.name===currentGame.name;
-            td.classList.add(correct?'bg-green':'bg-red');
-            row.cells[0].classList.add(correct?'bg-green':'bg-red');
-            if(correct){
-              showBigAnswerGame(currentGame,'🎉 You found it!');
-              document.getElementById('search-btn').style.display='none';
+      row.querySelectorAll('td').forEach((td, i) => {
+        setTimeout(() => {
+          td.style.transition = 'opacity .2s';
+          td.style.opacity = 1;
+          if (i === 1) {
+            const correct = game.name === currentGame.name;
+            td.classList.add(correct ? 'bg-green' : 'bg-red');
+            row.cells[0].classList.add(correct ? 'bg-green' : 'bg-red');
+            if (correct) {
+              showBigAnswerGame(currentGame, '🎉 You found it!');
+              document.getElementById('search-btn').style.display = 'none';
             }
-          }
-          else if(i===2){
-            if(guessYear===answerYear){
+          } else if (i === 2) {
+            if (guessYear === answerYear) {
               td.classList.add('bg-green');
             } else {
               td.classList.add('bg-red');
-              // arrow
-              td.innerHTML = `${guessYear} ${guessYear>answerYear?'▼':'▲'}`;
+              td.innerHTML = `${guessYear} ${guessYear > answerYear ? '▼' : '▲'}`;
             }
-          }
-          else if(i>=3){
+          } else if (i >= 3) {
             colorArr(td, guessArrs[i-3], answerSets[i-3]);
           }
-          window.scrollTo(0,document.body.scrollHeight);
-        }, i*50);
+          window.scrollTo(0, document.body.scrollHeight);
+        }, i * 50);
       });
 
-      if(game.name!==currentGame.name){
-        lives--; updateLives();
-        if(lives<=0){
-          showBigAnswerGame(currentGame,'💀 You lose! It was:');
-          document.getElementById('search-btn').style.display='none';
+      if (game.name !== currentGame.name) {
+        lives--;
+        updateLives();
+        if (lives <= 0) {
+          showBigAnswerGame(currentGame, '💀 You lose! It was:');
+          document.getElementById('search-btn').style.display = 'none';
         }
       }
     });
