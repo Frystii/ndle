@@ -14,7 +14,7 @@
     button:hover { background: #005bb5; }
     input { width: 80%; border: 1px solid #ccc; border-radius: 4px; }
     #game-info { margin: 20px 0; display: none; }
-    #lives { font-weight: bold; margin-top: 10px; text-align: center; }
+    #lives, #streak, #best-streak { font-weight: bold; margin-top: 10px; text-align: center; }
     #big-answer { display: none; padding: 20px; background: #ffe; border: 2px solid #e91e63;
                   border-radius: 8px; margin: 20px 0; text-align: center; }
     #big-answer h2 { margin-top: 0; color: #e91e63; }
@@ -33,6 +33,8 @@
     <h1>Guess the Nintendo Game</h1>
     <button id="new-game">New Random Game</button>
     <div id="lives">Lives: 10</div>
+    <div id="streak">Streak: 0</div>
+    <div id="best-streak">Best: 0</div>
     <div id="game-info"></div>
     <div id="big-answer"></div>
 
@@ -54,8 +56,9 @@
   <script src="../nintendo_games_slim.js"></script>
   <script>
   document.addEventListener('DOMContentLoaded', () => {
-    let currentGame, lives;
+    let currentGame, lives, streak = 0;
     const PLACEHOLDER_COVER = 'https://via.placeholder.com/50x50?text=?';
+    let bestStreak = parseInt(localStorage.getItem('bestStreak') || '0', 10);
 
     function formatDate(ts) {
       return ts ? new Date(ts * 1000).toISOString().slice(0,10) : '';
@@ -66,32 +69,9 @@
     function updateLives() {
       document.getElementById('lives').textContent = 'Lives: ' + lives;
     }
-    function hideGameInfo() {
-      document.getElementById('game-info').style.display = 'none';
-    }
-    function showGameInfo() {
-      const g = currentGame;
-      const year = extractYear(formatDate(g.first_release_date)) || '—';
-      const comps   = [...new Set((g.involved_companies||[]).map(ic=>ic.company?.name).filter(Boolean))].join(', ');
-      const genres  = (g.genres||[]).map(x=>x.name).join(', ');
-      const plats   = (g.platforms||[]).map(x=>x.name).join(', ');
-      const modes   = (g.game_modes||[]).map(x=>x.name).join(', ');
-      const frchs   = (g.franchises||[]).map(x=>x.name).join(', ');
-      const thms    = (g.themes||[]).map(x=>x.name).join(', ');
-      document.getElementById('game-info').innerHTML = `
-        <div><strong>Name:</strong> ${g.name} (${g.id})</div>
-        <div><strong>Year:</strong> ${year}</div>
-        ${comps?`<div><strong>Companies:</strong> ${comps}</div>`:''}
-        ${genres?`<div><strong>Genres:</strong> ${genres}</div>`:''}
-        ${plats?`<div><strong>Platforms:</strong> ${plats}</div>`:''}
-        ${modes?`<div><strong>Game Modes:</strong> ${modes}</div>`:''}
-        ${frchs?`<div><strong>Franchises:</strong> ${frchs}</div>`:''}
-        ${thms?`<div><strong>Themes:</strong> ${thms}</div>`:''}
-      `;
-      document.getElementById('game-info').style.display = 'block';
-    }
-    function hideBigAnswer() {
-      document.getElementById('big-answer').style.display = 'none';
+    function updateStreakDisplay() {
+      document.getElementById('streak').textContent     = 'Streak: ' + streak;
+      document.getElementById('best-streak').textContent = 'Best: '   + bestStreak;
     }
     function showBigAnswerGame(game, title) {
       const year = extractYear(formatDate(game.first_release_date)) || '—';
@@ -106,12 +86,12 @@
         <h2>${title}</h2>
         <p><strong>Name:</strong> ${game.name} (${game.id})</p>
         <p><strong>Year:</strong> ${year}</p>
-        ${comps?`<p><strong>Companies:</strong> ${comps}</p>`:''}
-        ${genres?`<p><strong>Genres:</strong> ${genres}</p>`:''}
-        ${plats?`<p><strong>Platforms:</strong> ${plats}</p>`:''}
-        ${modes?`<p><strong>Game Modes:</strong> ${modes}</p>`:''}
-        ${frchs?`<p><strong>Franchises:</strong> ${frchs}</p>`:''}
-        ${thms?`<p><strong>Themes:</strong> ${thms}</p>`:''}
+        ${comps?`<p><strong>Companies:</strong> ${comps}</p>`:``}
+        ${genres?`<p><strong>Genres:</strong> ${genres}</p>`:``}
+        ${plats?`<p><strong>Platforms:</strong> ${plats}</p>`:``}
+        ${modes?`<p><strong>Game Modes:</strong> ${modes}</p>`:``}
+        ${frchs?`<p><strong>Franchises:</strong> ${frchs}</p>`:``}
+        ${thms?`<p><strong>Themes:</strong> ${thms}</p>`:``}
       `;
       ba.style.display = 'block';
     }
@@ -140,10 +120,16 @@
     }
 
     function startGame() {
+      // reset streak only if mid-game
+      if (document.getElementById('search-btn').style.display !== 'none' && lives < 10) {
+        streak = 0;
+      }
+      updateStreakDisplay();
+
       pickRandom();
-      lives = 10; updateLives();
-      hideGameInfo();
-      hideBigAnswer();
+      lives = 10;
+      updateLives();
+      document.getElementById('big-answer').style.display = 'none';
       document.querySelector('#search-results tbody').innerHTML = '';
       rebuildDatalist();
       document.getElementById('search-btn').style.display = 'block';
@@ -152,7 +138,7 @@
 
     function colorArr(td, guessArr = [], answerSet = new Set()) {
       const any = Array.isArray(guessArr) && guessArr.some(v => answerSet.has(v));
-      const all = Array.isArray(guessArr) && guessArr.length === answerSet.size && guessArr.every(v => answerSet.has(v));
+      const all = Array.isArray(guessArr) && guessArr.length === answerSet.size && guessArr.every(v=>answerSet.has(v));
       td.classList.add(all ? 'bg-green' : any ? 'bg-yellow' : 'bg-red');
     }
 
@@ -164,7 +150,7 @@
       const game = games.find(g => g.name === guess);
       if (!game) return console.error('No match:', guess);
       const tbody = document.querySelector('#search-results tbody');
-      if ([...tbody.querySelectorAll('tr')].some(tr => tr.cells[1].textContent.includes(`(${game.id})`)))
+      if ([...tbody.querySelectorAll('tr')].some(tr=>tr.cells[1].textContent.includes(`(${game.id})`)))
         return console.error('Already guessed:', guess);
 
       const guessYear  = extractYear(formatDate(game.first_release_date));
@@ -186,6 +172,7 @@
         new Set((currentGame.themes||[]).map(x=>x.name))
       ];
 
+      // append row
       const row = document.createElement('tr');
       const coverUrl = game.cover?.url ? `https:${game.cover.url}` : PLACEHOLDER_COVER;
       const cells = [
@@ -196,62 +183,73 @@
       ];
       cells.forEach(html => {
         const td = document.createElement('td');
-        td.innerHTML = html; td.style.opacity = 0;
+        td.innerHTML = html;
+        td.style.opacity = 0;
         row.append(td);
       });
       tbody.append(row);
 
-      row.querySelectorAll('td').forEach((td, i) => {
-        setTimeout(() => {
+      row.querySelectorAll('td').forEach((td,i)=>{
+        setTimeout(()=>{
           td.style.transition = 'opacity .2s';
           td.style.opacity = 1;
-          if (i === 1) {
-            const correct = game.name === currentGame.name;
+          if (i===1) {
+            const correct = (game.name === currentGame.name);
             td.classList.add(correct ? 'bg-green' : 'bg-red');
             row.cells[0].classList.add(correct ? 'bg-green' : 'bg-red');
             if (correct) {
+              // win → increment streak
+              streak++;
+              if (streak > bestStreak) {
+                bestStreak = streak;
+                localStorage.setItem('bestStreak', bestStreak);
+              }
+              updateStreakDisplay();
               btn.style.display = 'none';
               showBigAnswerGame(currentGame, '🎉 You found it!');
-              showGameInfo();
             }
           }
-          else if (i === 2) {
-            if (guessYear === answerYear) {
+          else if (i===2) {
+            if (guessYear===answerYear) {
               td.classList.add('bg-green');
             } else {
               td.classList.add('bg-red');
-              td.innerHTML = `${guessYear} ${guessYear > answerYear ? '▼' : '▲'}`;
+              td.innerHTML = `${guessYear} ${guessYear>answerYear ? '▼' : '▲'}`;
             }
           }
-          else if (i >= 3) {
+          else if (i>=3) {
             colorArr(td, guessArrs[i-3], answerSets[i-3]);
           }
-          window.scrollTo(0, document.body.scrollHeight);
-        }, i * 50);
+          window.scrollTo(0,document.body.scrollHeight);
+        }, i*50);
       });
 
       rebuildDatalist();
 
       if (game.name !== currentGame.name) {
-        lives--; updateLives();
+        lives--;
+        updateLives();
         if (lives <= 0) {
+          // lose → reset streak
+          streak = 0;
+          updateStreakDisplay();
           btn.style.display = 'none';
           showBigAnswerGame(currentGame, '💀 You lose! It was:');
-          showGameInfo();
         }
       }
     }
 
     document.getElementById('new-game').addEventListener('click', startGame);
     document.getElementById('search-btn').addEventListener('click', validate);
-    document.getElementById('game-search').addEventListener('keydown', e => {
+    document.getElementById('game-search').addEventListener('keydown', e=>{
       const btn = document.getElementById('search-btn');
-      if (e.key === 'Enter' && btn.style.display !== 'none') {
+      if (e.key==='Enter' && btn.style.display!=='none') {
         e.preventDefault();
         validate();
       }
     });
 
+    // initial launch
     startGame();
   });
   </script>
