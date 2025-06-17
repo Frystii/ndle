@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Guess the Nintendo Game</title>
   <style>
     body { font-family: Arial, sans-serif; background: #f4f4f4; color: #333; margin: 0; padding: 20px; }
@@ -13,9 +13,9 @@
     button { border: none; background: #0066cc; color: #fff; border-radius: 4px; cursor: pointer; }
     button:hover { background: #005bb5; }
     input { width: 80%; border: 1px solid #ccc; border-radius: 4px; }
-    #game-info { margin: 20px 0; }
+    #game-info { margin: 20px 0; }            /* always visible now */
     #lives { font-weight: bold; margin-top: 10px; text-align: center; }
-    #big-answer { padding: 20px; background: #ffe; border: 2px solid #e91e63;
+    #big-answer { display: none; padding: 20px; background: #ffe; border: 2px solid #e91e63;
                   border-radius: 8px; margin: 20px 0; text-align: center; }
     #big-answer h2 { margin-top: 0; color: #e91e63; }
     .search-box { margin: 20px auto; padding: 10px; background: #eaeaea; border-radius: 6px; }
@@ -30,10 +30,10 @@
 </head>
 <body>
   <div class="container">
-    <h1>Random Nintendo Game</h1>
+    <h1>Guess the Nintendo Game</h1>
     <button id="new-game">New Random Game</button>
-    <div id="game-info"><p>Loading...</p></div>
     <div id="lives">Lives: 10</div>
+    <div id="game-info"></div>
     <div id="big-answer"></div>
 
     <div class="search-box">
@@ -58,51 +58,14 @@
     const PLACEHOLDER_COVER = 'https://via.placeholder.com/50x50?text=?';
 
     function formatDate(ts) {
-      return ts ? new Date(ts*1000).toISOString().slice(0,10) : '';
+      return ts ? new Date(ts * 1000).toISOString().slice(0,10) : '';
     }
-    function extractYear(dateStr) {
-      return dateStr ? parseInt(dateStr.slice(0,4), 10) : null;
+    function extractYear(str) {
+      return str ? parseInt(str.slice(0,4),10) : null;
     }
     function updateLives() {
       document.getElementById('lives').textContent = 'Lives: ' + lives;
     }
-    function clearBigAnswer() {
-      document.getElementById('big-answer').innerHTML = '';
-    }
-    function showBigAnswerGame(game, title) {
-      const year = extractYear(formatDate(game.first_release_date)) || '—';
-      const comps   = [...new Set((game.involved_companies||[]).map(ic=>ic.company?.name).filter(Boolean))].join(', ');
-      const genres  = (game.genres||[]).map(x=>x.name).join(', ');
-      const plats   = (game.platforms||[]).map(x=>x.name).join(', ');
-      const modes   = (game.game_modes||[]).map(x=>x.name).join(', ');
-      const frchs   = (game.franchises||[]).map(x=>x.name).join(', ');
-      const thms    = (game.themes||[]).map(x=>x.name).join(', ');
-      document.getElementById('big-answer').innerHTML = `
-        <h2>${title}</h2>
-        <p><strong>Name:</strong> ${game.name} (${game.id})</p>
-        <p><strong>Year:</strong> ${year}</p>
-        ${comps?`<p><strong>Companies:</strong> ${comps}</p>`:''}
-        ${genres?`<p><strong>Genres:</strong> ${genres}</p>`:''}
-        ${plats?`<p><strong>Platforms:</strong> ${plats}</p>`:''}
-        ${modes?`<p><strong>Game Modes:</strong> ${modes}</p>`:''}
-        ${frchs?`<p><strong>Franchises:</strong> ${frchs}</p>`:''}
-        ${thms?`<p><strong>Themes:</strong> ${thms}</p>`:''}
-      `;
-    }
-
-    function pickRandom() {
-      currentGame = games[Math.floor(Math.random()*games.length)];
-    }
-    function startGame() {
-      pickRandom();
-      lives = 10; updateLives();
-      clearBigAnswer();
-      showGameInfo();
-      document.getElementById('search-btn').style.display = 'block';
-      document.querySelector('#search-results tbody').innerHTML = '';
-      window.scrollTo({ top:0, behavior:'smooth' });
-    }
-
     function showGameInfo() {
       const g = currentGame;
       const year = extractYear(formatDate(g.first_release_date)) || '—';
@@ -123,36 +86,80 @@
         ${thms?`<div><strong>Themes:</strong> ${thms}</div>`:''}
       `;
     }
+    function hideBigAnswer() {
+      document.getElementById('big-answer').style.display = 'none';
+    }
+    function showBigAnswerGame(game, title) {
+      const year = extractYear(formatDate(game.first_release_date)) || '—';
+      const comps   = [...new Set((game.involved_companies||[]).map(ic=>ic.company?.name).filter(Boolean))].join(', ');
+      const genres  = (game.genres||[]).map(x=>x.name).join(', ');
+      const plats   = (game.platforms||[]).map(x=>x.name).join(', ');
+      const modes   = (game.game_modes||[]).map(x=>x.name).join(', ');
+      const frchs   = (game.franchises||[]).map(x=>x.name).join(', ');
+      const thms    = (game.themes||[]).map(x=>x.name).join(', ');
+      const ba = document.getElementById('big-answer');
+      ba.innerHTML = `
+        <h2>${title}</h2>
+        <p><strong>Name:</strong> ${game.name} (${game.id})</p>
+        <p><strong>Year:</strong> ${year}</p>
+        ${comps?`<p><strong>Companies:</strong> ${comps}</p>`:''}
+        ${genres?`<p><strong>Genres:</strong> ${genres}</p>`:''}
+        ${plats?`<p><strong>Platforms:</strong> ${plats}</p>`:''}
+        ${modes?`<p><strong>Game Modes:</strong> ${modes}</p>`:''}
+        ${frchs?`<p><strong>Franchises:</strong> ${frchs}</p>`:''}
+        ${thms?`<p><strong>Themes:</strong> ${thms}</p>`:''}
+      `;
+      ba.style.display = 'block';
+    }
 
-    // build datalist
-    const dl = document.createElement('datalist');
-    dl.id = 'games-list';
-    games.forEach(g => {
-      const o = document.createElement('option');
-      o.value = g.name;
-      dl.append(o);
-    });
-    document.body.append(dl);
+    function pickRandom() {
+      currentGame = games[Math.floor(Math.random() * games.length)];
+    }
+
+    function rebuildDatalist() {
+      const old = document.getElementById('games-list');
+      if (old) old.remove();
+      const dl = document.createElement('datalist');
+      dl.id = 'games-list';
+      const guessed = new Set(
+        Array.from(document.querySelectorAll('#search-results tbody tr td:nth-child(2)'))
+          .map(td => td.textContent.replace(/\s*\(\d+\)$/, ''))
+      );
+      games.forEach(g => {
+        if (!guessed.has(g.name)) {
+          const o = document.createElement('option');
+          o.value = g.name;
+          dl.append(o);
+        }
+      });
+      document.body.append(dl);
+    }
+
+    function startGame() {
+      pickRandom();
+      lives = 10; updateLives();
+      hideBigAnswer();
+      document.querySelector('#search-results tbody').innerHTML = '';
+      rebuildDatalist();
+      document.getElementById('search-btn').style.display = 'block';
+      showGameInfo();     // always show the target
+      window.scrollTo({ top:0, behavior:'smooth' });
+    }
 
     function colorArr(td, guessArr = [], answerSet = new Set()) {
-      if (!Array.isArray(guessArr) || answerSet.size === 0) {
-        td.classList.add('bg-red');
-        return;
-      }
-      const any = guessArr.some(v => answerSet.has(v));
-      const all = guessArr.length === answerSet.size && guessArr.every(v => answerSet.has(v));
+      const any = Array.isArray(guessArr) && guessArr.some(v => answerSet.has(v));
+      const all = Array.isArray(guessArr) && guessArr.length === answerSet.size && guessArr.every(v => answerSet.has(v));
       td.classList.add(all ? 'bg-green' : any ? 'bg-yellow' : 'bg-red');
     }
 
-    document.getElementById('new-game').addEventListener('click', startGame);
-
-    document.getElementById('search-btn').addEventListener('click', () => {
+    function validate() {
+      const btn = document.getElementById('search-btn');
+      if (btn.style.display === 'none') return;
       const inp = document.getElementById('game-search');
-      const guess = inp.value.trim();
-      inp.value = '';
+      const guess = inp.value.trim(); inp.value = '';
       const game = games.find(g => g.name === guess);
-      const tbody = document.querySelector('#search-results tbody');
       if (!game) return console.error('No match:', guess);
+      const tbody = document.querySelector('#search-results tbody');
       if ([...tbody.querySelectorAll('tr')].some(tr => tr.cells[1].textContent.includes(`(${game.id})`)))
         return console.error('Already guessed:', guess);
 
@@ -175,24 +182,17 @@
         new Set((currentGame.themes||[]).map(x=>x.name))
       ];
 
-      // build row
       const row = document.createElement('tr');
       const coverUrl = game.cover?.url ? `https:${game.cover.url}` : PLACEHOLDER_COVER;
       const cells = [
         `<img class="cover" src="${coverUrl}">`,
         `${game.name} (${game.id})`,
         guessYear !== null ? guessYear : '—',
-        guessArrs[0].join(', '),
-        guessArrs[1].join(', '),
-        guessArrs[2].join(', '),
-        guessArrs[3].join(', '),
-        guessArrs[4].join(', '),
-        guessArrs[5].join(', ')
+        ...guessArrs.map(arr => arr.join(', '))
       ];
       cells.forEach(html => {
         const td = document.createElement('td');
-        td.innerHTML = html;
-        td.style.opacity = 0;
+        td.innerHTML = html; td.style.opacity = 0;
         row.append(td);
       });
       tbody.append(row);
@@ -206,30 +206,43 @@
             td.classList.add(correct ? 'bg-green' : 'bg-red');
             row.cells[0].classList.add(correct ? 'bg-green' : 'bg-red');
             if (correct) {
+              btn.style.display = 'none';
               showBigAnswerGame(currentGame, '🎉 You found it!');
-              document.getElementById('search-btn').style.display = 'none';
             }
-          } else if (i === 2) {
+          }
+          else if (i === 2) {
             if (guessYear === answerYear) {
               td.classList.add('bg-green');
             } else {
               td.classList.add('bg-red');
               td.innerHTML = `${guessYear} ${guessYear > answerYear ? '▼' : '▲'}`;
             }
-          } else if (i >= 3) {
+          }
+          else if (i >= 3) {
             colorArr(td, guessArrs[i-3], answerSets[i-3]);
           }
           window.scrollTo(0, document.body.scrollHeight);
         }, i * 50);
       });
 
+      rebuildDatalist();
+
       if (game.name !== currentGame.name) {
-        lives--;
-        updateLives();
+        lives--; updateLives();
         if (lives <= 0) {
+          btn.style.display = 'none';
           showBigAnswerGame(currentGame, '💀 You lose! It was:');
-          document.getElementById('search-btn').style.display = 'none';
         }
+      }
+    }
+
+    document.getElementById('new-game').addEventListener('click', startGame);
+    document.getElementById('search-btn').addEventListener('click', validate);
+    document.getElementById('game-search').addEventListener('keydown', e => {
+      const btn = document.getElementById('search-btn');
+      if (e.key === 'Enter' && btn.style.display !== 'none') {
+        e.preventDefault();
+        validate();
       }
     });
 
