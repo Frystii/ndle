@@ -13,12 +13,12 @@
     button { border: none; background: #0066cc; color: #fff; border-radius: 4px; cursor: pointer; }
     button:hover { background: #005bb5; }
     input { width: 80%; border: 1px solid #ccc; border-radius: 4px; }
-    #game-info { margin: 20px 0; display: none; }
     #lives, #streak, #best-streak { font-weight: bold; margin-top: 10px; text-align: center; }
     #big-answer { display: none; padding: 20px; background: #ffe; border: 2px solid #e91e63;
                   border-radius: 8px; margin: 20px 0; text-align: center; }
     #big-answer h2 { margin-top: 0; color: #e91e63; }
-    .search-box { margin: 20px auto; padding: 10px; background: #eaeaea; border-radius: 6px; }
+    .search-box { margin: 20px auto; padding: 10px; background: #eaeaea; border-radius: 6px; position: relative; }
+    #hint-btn { display: none; margin: 0; position: absolute; top: 12px; right: 10px; background: #ff9800; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: middle; }
     th { background: #f0f0f0; }
@@ -26,6 +26,7 @@
     .bg-green  { background: #c8e6c9; }
     .bg-yellow { background: #fff9c4; }
     .bg-red    { background: #ffcdd2; }
+    table, table th, table td { font-size: 13px; }
   </style>
 </head>
 <body>
@@ -35,17 +36,32 @@
     <div id="lives">Lives: 10</div>
     <div id="streak">Streak: 0</div>
     <div id="best-streak">Best: 0</div>
-    <div id="game-info"></div>
     <div id="big-answer"></div>
 
     <div class="search-box">
       <input id="game-search" list="games-list" placeholder="Search games...">
       <button id="search-btn">Validate</button>
+      <button id="hint-btn">Indice</button>
+
+      <!-- Tableau récapitulatif -->
+      <table id="summary-table">
+        <thead>
+          <tr>
+            <th>Cover</th><th>Name</th><th>Year</th><th>Genres</th><th>Themes</th><th>Game Modes</th>
+            <th>Developers</th><th>Publishers</th><th>Perspectives</th><th>Franchises</th><th>Platforms</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr id="summary-row"></tr>
+        </tbody>
+      </table>
+
+      <!-- Tableau des essais -->
       <table id="search-results">
         <thead>
           <tr>
-            <th>Cover</th><th>Name (ID)</th><th>Year</th><th>Companies</th>
-            <th>Genres</th><th>Platforms</th><th>Game Modes</th><th>Franchises</th><th>Themes</th>
+            <th>Cover</th><th>Name (ID)</th><th>Year</th><th>Genres</th><th>Themes</th><th>Game Modes</th>
+            <th>Developers</th><th>Publishers</th><th>Perspectives</th><th>Franchises</th><th>Platforms</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -55,203 +71,307 @@
 
   <script src="../nintendo_games_slim.js"></script>
   <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    let currentGame, lives, streak = 0;
-    const PLACEHOLDER_COVER = 'https://via.placeholder.com/50x50?text=?';
-    let bestStreak = parseInt(localStorage.getItem('bestStreak') || '0', 10);
+    document.addEventListener('DOMContentLoaded', () => {
+      let currentGame, lives = 10, prevLives = 10, streak = 0;
+      const PLACEHOLDER_COVER = 'https://via.placeholder.com/50x50?text=?';
+      let bestStreak = parseInt(localStorage.getItem('bestStreak') || '0', 10);
 
-    function formatDate(ts) {
-      return ts ? new Date(ts * 1000).toISOString().slice(0,10) : '';
-    }
-    function extractYear(str) {
-      return str ? parseInt(str.slice(0,4),10) : null;
-    }
-    function updateLives() {
-      document.getElementById('lives').textContent = 'Lives: ' + lives;
-    }
-    function updateStreakDisplay() {
-      document.getElementById('streak').textContent     = 'Streak: ' + streak;
-      document.getElementById('best-streak').textContent = 'Best: '   + bestStreak;
-    }
-    function showBigAnswerGame(game, title) {
-      const year = extractYear(formatDate(game.first_release_date)) || '—';
-      const comps   = [...new Set((game.involved_companies||[]).map(ic=>ic.company?.name).filter(Boolean))].join(', ');
-      const genres  = (game.genres||[]).map(x=>x.name).join(', ');
-      const plats   = (game.platforms||[]).map(x=>x.name).join(', ');
-      const modes   = (game.game_modes||[]).map(x=>x.name).join(', ');
-      const frchs   = (game.franchises||[]).map(x=>x.name).join(', ');
-      const thms    = (game.themes||[]).map(x=>x.name).join(', ');
-      const ba = document.getElementById('big-answer');
-      ba.innerHTML = `
-        <h2>${title}</h2>
-        <p><strong>Name:</strong> ${game.name} (${game.id})</p>
-        <p><strong>Year:</strong> ${year}</p>
-        ${comps?`<p><strong>Companies:</strong> ${comps}</p>`:``}
-        ${genres?`<p><strong>Genres:</strong> ${genres}</p>`:``}
-        ${plats?`<p><strong>Platforms:</strong> ${plats}</p>`:``}
-        ${modes?`<p><strong>Game Modes:</strong> ${modes}</p>`:``}
-        ${frchs?`<p><strong>Franchises:</strong> ${frchs}</p>`:``}
-        ${thms?`<p><strong>Themes:</strong> ${thms}</p>`:``}
-      `;
-      ba.style.display = 'block';
-    }
+      function formatDate(ts){ return ts ? new Date(ts*1000).toISOString().slice(0,10) : ''; }
+      function extractYear(s){ return s ? parseInt(s.slice(0,4),10) : null; }
 
-    function pickRandom() {
-      currentGame = games[Math.floor(Math.random() * games.length)];
-    }
-
-    function rebuildDatalist() {
-      const old = document.getElementById('games-list');
-      if (old) old.remove();
-      const dl = document.createElement('datalist');
-      dl.id = 'games-list';
-      const guessed = new Set(
-        Array.from(document.querySelectorAll('#search-results tbody tr td:nth-child(2)'))
-          .map(td => td.textContent.replace(/\s*\(\d+\)$/, ''))
-      );
-      games.forEach(g => {
-        if (!guessed.has(g.name)) {
-          const o = document.createElement('option');
-          o.value = g.name;
-          dl.append(o);
+      function updateLives(){
+        document.getElementById('lives').textContent = 'Lives: ' + lives;
+        if(prevLives === 6 && lives === 5){
+          document.getElementById('hint-btn').style.display = 'block';
         }
-      });
-      document.body.append(dl);
-    }
-
-    function startGame() {
-      // reset streak only if mid-game
-      if (document.getElementById('search-btn').style.display !== 'none' && lives < 10) {
-        streak = 0;
       }
-      updateStreakDisplay();
 
-      pickRandom();
-      lives = 10;
-      updateLives();
-      document.getElementById('big-answer').style.display = 'none';
-      document.querySelector('#search-results tbody').innerHTML = '';
-      rebuildDatalist();
-      document.getElementById('search-btn').style.display = 'block';
-      window.scrollTo({ top:0, behavior:'smooth' });
-    }
+      function updateStreak(){
+        document.getElementById('streak').textContent = 'Streak: ' + streak;
+        document.getElementById('best-streak').textContent = 'Best: ' + bestStreak;
+      }
 
-    function colorArr(td, guessArr = [], answerSet = new Set()) {
-      const any = Array.isArray(guessArr) && guessArr.some(v => answerSet.has(v));
-      const all = Array.isArray(guessArr) && guessArr.length === answerSet.size && guessArr.every(v=>answerSet.has(v));
-      td.classList.add(all ? 'bg-green' : any ? 'bg-yellow' : 'bg-red');
-    }
+      function showBigAnswer(title){
+        const g = currentGame;
+        const year = extractYear(formatDate(g.first_release_date)) || '—';
+        const devs = (g.involved_companies||[]).filter(ic=>ic.developer).map(ic=>ic.company?.name).join(', ');
+        const pubs = (g.involved_companies||[]).filter(ic=>ic.publisher).map(ic=>ic.company?.name).join(', ');
+        const genres = (g.genres||[]).map(x=>x.name).join(', ');
+        const themes = (g.themes||[]).map(x=>x.name).join(', ');
+        const modes = (g.game_modes||[]).map(x=>x.name).join(', ');
+        const persps = (g.player_perspectives||[]).map(x=>x.name).join(', ');
+        const frchs = (g.franchises||[]).map(x=>x.name).join(', ');
+        const plats = (g.platforms||[]).map(x=>x.name).join(', ');
+        const ba = document.getElementById('big-answer');
+        ba.innerHTML = `
+          <h2>${title}</h2>
+          <p><strong>Name:</strong> ${g.name} (${g.id})</p>
+          <p><strong>Year:</strong> ${year}</p>
+          <p><strong>Genres:</strong> ${genres}</p>
+          <p><strong>Themes:</strong> ${themes}</p>
+          <p><strong>Game Modes:</strong> ${modes}</p>
+          <p><strong>Developers:</strong> ${devs}</p>
+          <p><strong>Publishers:</strong> ${pubs}</p>
+          <p><strong>Perspectives:</strong> ${persps}</p>
+          <p><strong>Franchises:</strong> ${frchs}</p>
+          <p><strong>Platforms:</strong> ${plats}</p>
+        `;
+        ba.style.display = 'block';
+      }
 
-    function validate() {
-      const btn = document.getElementById('search-btn');
-      if (btn.style.display === 'none') return;
-      const inp = document.getElementById('game-search');
-      const guess = inp.value.trim(); inp.value = '';
-      const game = games.find(g => g.name === guess);
-      if (!game) return console.error('No match:', guess);
-      const tbody = document.querySelector('#search-results tbody');
-      if ([...tbody.querySelectorAll('tr')].some(tr=>tr.cells[1].textContent.includes(`(${game.id})`)))
-        return console.error('Already guessed:', guess);
+      function resetSummary(){
+        const row = document.getElementById('summary-row');
+        row.innerHTML = '';
+        for(let i=0; i<11; i++){
+          const td = document.createElement('td');
+          td.textContent = '—';
+          td.classList.add('bg-red');
+          row.appendChild(td);
+        }
+      }
 
-      const guessYear  = extractYear(formatDate(game.first_release_date));
-      const answerYear = extractYear(formatDate(currentGame.first_release_date));
-      const guessArrs  = [
-        [...new Set((game.involved_companies||[]).map(ic=>ic.company?.name).filter(Boolean))],
-        (game.genres||[]).map(x=>x.name),
-        (game.platforms||[]).map(x=>x.name),
-        (game.game_modes||[]).map(x=>x.name),
-        (game.franchises||[]).map(x=>x.name),
-        (game.themes||[]).map(x=>x.name)
-      ];
-      const answerSets = [
-        new Set((currentGame.involved_companies||[]).map(ic=>ic.company?.name).filter(Boolean)),
-        new Set((currentGame.genres||[]).map(x=>x.name)),
-        new Set((currentGame.platforms||[]).map(x=>x.name)),
-        new Set((currentGame.game_modes||[]).map(x=>x.name)),
-        new Set((currentGame.franchises||[]).map(x=>x.name)),
-        new Set((currentGame.themes||[]).map(x=>x.name))
-      ];
+      function pickRandom(){
+        currentGame = games[Math.floor(Math.random() * games.length)];
+      }
 
-      // append row
-      const row = document.createElement('tr');
-      const coverUrl = game.cover?.url ? `https:${game.cover.url}` : PLACEHOLDER_COVER;
-      const cells = [
-        `<img class="cover" src="${coverUrl}">`,
-        `${game.name} (${game.id})`,
-        guessYear !== null ? guessYear : '—',
-        ...guessArrs.map(arr => arr.join(', '))
-      ];
-      cells.forEach(html => {
-        const td = document.createElement('td');
-        td.innerHTML = html;
-        td.style.opacity = 0;
-        row.append(td);
-      });
-      tbody.append(row);
+      function rebuildDatalist(){
+        const old = document.getElementById('games-list');
+        if(old) old.remove();
+        const dl = document.createElement('datalist'); dl.id = 'games-list';
+        const guessed = new Set(
+          Array.from(document.querySelectorAll('#search-results tbody tr td:nth-child(2)'))
+            .map(td => td.textContent.replace(/\s*\(\d+\)$/,''))
+        );
+        games.forEach(g => {
+          if(!guessed.has(g.name)){
+            const o = document.createElement('option'); o.value = g.name;
+            dl.appendChild(o);
+          }
+        });
+        document.body.appendChild(dl);
+      }
 
-      row.querySelectorAll('td').forEach((td,i)=>{
-        setTimeout(()=>{
-          td.style.transition = 'opacity .2s';
-          td.style.opacity = 1;
-          if (i===1) {
-            const correct = (game.name === currentGame.name);
-            td.classList.add(correct ? 'bg-green' : 'bg-red');
-            row.cells[0].classList.add(correct ? 'bg-green' : 'bg-red');
-            if (correct) {
-              // win → increment streak
-              streak++;
-              if (streak > bestStreak) {
-                bestStreak = streak;
+      function colorArrDetailed(td, guessArr=[], answerSet=new Set()){
+        const any = guessArr.some(v => answerSet.has(v));
+        const all = guessArr.length === answerSet.size && guessArr.every(v => answerSet.has(v));
+        td.classList.add(all ? 'bg-green' : any ? 'bg-yellow' : 'bg-red');
+      }
+
+      function validate(){
+        const name = document.getElementById('game-search').value.trim();
+        const game = games.find(g => g.name === name);
+        document.getElementById('game-search').value = '';
+        if(!game) return;
+
+        const detTb = document.querySelector('#search-results tbody');
+        if([...detTb.querySelectorAll('tr')].some(tr => tr.cells[1].textContent.includes(`(${game.id})`)))
+          return;
+
+        const g = currentGame;
+        const year = extractYear(formatDate(g.first_release_date));
+        const ansSets = [
+          new Set(), // cover
+          new Set([g.name]),
+          new Set([year]),
+          new Set((g.genres||[]).map(x=>x.name)),
+          new Set((g.themes||[]).map(x=>x.name)),
+          new Set((g.game_modes||[]).map(x=>x.name)),
+          new Set((g.involved_companies||[]).filter(ic=>ic.developer).map(ic=>ic.company.name)),
+          new Set((g.involved_companies||[]).filter(ic=>ic.publisher).map(ic=>ic.company.name)),
+          new Set((g.player_perspectives||[]).map(x=>x.name)),
+          new Set((g.franchises||[]).map(x=>x.name)),
+          new Set((g.platforms||[]).map(x=>x.name)),
+        ];
+        const guessArrs = [
+          [], // cover
+          [game.name],
+          [extractYear(formatDate(game.first_release_date))],
+          (game.genres||[]).map(x=>x.name),
+          (game.themes||[]).map(x=>x.name),
+          (game.game_modes||[]).map(x=>x.name),
+          (game.involved_companies||[]).filter(ic=>ic.developer).map(ic=>ic.company.name),
+          (game.involved_companies||[]).filter(ic=>ic.publisher).map(ic=>ic.company.name),
+          (game.player_perspectives||[]).map(x=>x.name),
+          (game.franchises||[]).map(x=>x.name),
+          (game.platforms||[]).map(x=>x.name),
+        ];
+
+        const row = document.getElementById('summary-row');
+        Array.from(row.children).forEach((td, i) => {
+          if(i === 0) return;
+          const guess = guessArrs[i];
+          const ans = ansSets[i];
+          const ok = guess.length === ans.size && guess.every(v => ans.has(v));
+          if(ok){
+            td.textContent = guess.join(', ');
+            td.classList.replace('bg-red','bg-green');
+          }
+        });
+
+        const tr = document.createElement('tr');
+        const cover = game.cover?.url ? `https:${game.cover.url}` : PLACEHOLDER_COVER;
+        const cells = [
+          `<img class="cover" src="${cover}">`,
+          `${game.name} (${game.id})`,
+          guessArrs[2][0] || '—',
+          ...guessArrs.slice(3).map(a => a.join(', '))
+        ];
+        cells.forEach((html, i) => {
+          const td = document.createElement('td');
+          td.innerHTML = html;
+          td.style.opacity = 0;
+          tr.appendChild(td);
+        });
+        detTb.appendChild(tr);
+
+        tr.querySelectorAll('td').forEach((td, i) => {
+          setTimeout(() => {
+            td.style.transition = 'opacity .2s';
+            td.style.opacity = 1;
+            if(i === 1){
+              const correct = (game.name === g.name);
+              td.classList.add(correct ? 'bg-green' : 'bg-red');
+              tr.cells[0].classList.add(correct ? 'bg-green' : 'bg-red');
+              if(correct){
+                streak++;
+                bestStreak = Math.max(bestStreak, streak);
                 localStorage.setItem('bestStreak', bestStreak);
+                updateStreak();
+                document.getElementById('search-btn').style.display = 'none';
+                showBigAnswer('🎉 You found it!');
               }
-              updateStreakDisplay();
-              btn.style.display = 'none';
-              showBigAnswerGame(currentGame, '🎉 You found it!');
             }
-          }
-          else if (i===2) {
-            if (guessYear===answerYear) {
-              td.classList.add('bg-green');
-            } else {
-              td.classList.add('bg-red');
-              td.innerHTML = `${guessYear} ${guessYear>answerYear ? '▼' : '▲'}`;
+            else if(i === 2){
+  const guessYear = guessArrs[2][0];
+  if (guessYear === year) {
+    td.classList.add('bg-green');
+  } else {
+    td.classList.add('bg-red');
+    td.innerHTML = `${guessYear} ${guessYear > year ? '▼' : '▲'}`;
+  }
+}
+            else if(i >= 3){
+              colorArrDetailed(td, guessArrs[i], ansSets[i]);
             }
-          }
-          else if (i>=3) {
-            colorArr(td, guessArrs[i-3], answerSets[i-3]);
-          }
-          window.scrollTo(0,document.body.scrollHeight);
-        }, i*50);
-      });
+            window.scrollTo(0, document.body.scrollHeight);
+          }, i * 50);
+        });
 
-      rebuildDatalist();
-
-      if (game.name !== currentGame.name) {
-        lives--;
+        prevLives = lives--;
         updateLives();
-        if (lives <= 0) {
-          // lose → reset streak
+        rebuildDatalist();
+
+        if(lives <= 0){
           streak = 0;
-          updateStreakDisplay();
-          btn.style.display = 'none';
-          showBigAnswerGame(currentGame, '💀 You lose! It was:');
+          updateStreak();
+          document.getElementById('search-btn').style.display = 'none';
+          document.getElementById('hint-btn').style.display = 'none';
+          showBigAnswer('💀 You lose! It was:');
         }
       }
+
+      document.getElementById('new-game').addEventListener('click', () => {
+        if(lives < 10) streak = 0;
+        updateStreak();
+        pickRandom();
+        lives = prevLives = 10;
+        updateLives();
+        document.getElementById('big-answer').style.display = 'none';
+        document.querySelector('#search-results tbody').innerHTML = '';
+        resetSummary();
+        rebuildDatalist();
+        document.getElementById('search-btn').style.display = 'block';
+        document.getElementById('hint-btn').style.display = 'none';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      document.getElementById('search-btn').addEventListener('click', validate);
+      document.getElementById('game-search').addEventListener('keydown', e => {
+        if(e.key === 'Enter' && document.getElementById('search-btn').style.display !== 'none'){
+          e.preventDefault(); validate();
+        }
+      });
+      document.getElementById('hint-btn').addEventListener('click', () => {
+  const game = currentGame;
+  const row = document.getElementById('summary-row');
+  const headers = Array.from(document.querySelectorAll('#summary-table thead th'));
+  const cells = Array.from(row.children);
+
+  let possibleHints = [];
+
+  cells.forEach((cell, i) => {
+    const label = headers[i]?.textContent;
+    if (cell.classList.contains('bg-red') && !['Cover', 'Name'].includes(label)) {
+      possibleHints.push({ index: i, label });
+    }
+  });
+
+  if (possibleHints.length === 0) return;
+
+  const picked = possibleHints[Math.floor(Math.random() * possibleHints.length)];
+  const i = picked.index;
+  const label = picked.label;
+
+  let value = '—';
+  switch(label) {
+    case 'Year': value = new Date(game.first_release_date * 1000).getFullYear(); break;
+    case 'Genres': value = (game.genres||[]).map(x=>x.name).join(', '); break;
+    case 'Themes': value = (game.themes||[]).map(x=>x.name).join(', '); break;
+    case 'Game Modes': value = (game.game_modes||[]).map(x=>x.name).join(', '); break;
+    case 'Developers': value = (game.involved_companies||[]).filter(ic=>ic.developer).map(ic=>ic.company.name).join(', '); break;
+    case 'Publishers': value = (game.involved_companies||[]).filter(ic=>ic.publisher).map(ic=>ic.company.name).join(', '); break;
+    case 'Perspectives': value = (game.player_perspectives||[]).map(x=>x.name).join(', '); break;
+    case 'Franchises': value = (game.franchises||[]).map(x=>x.name).join(', '); break;
+    case 'Platforms': value = (game.platforms||[]).map(x=>x.name).join(', '); break;
+  }
+
+  // Mise à jour du tableau de récapitulatif
+  const recapCell = row.children[i];
+  recapCell.textContent = value;
+  recapCell.classList.remove('bg-red');
+  recapCell.classList.add('bg-green');
+
+  // Construction de la ligne d'indice dans le tableau des essais
+  const detTb = document.querySelector('#search-results tbody');
+  const tr = document.createElement('tr');
+  const totalCols = headers.length;
+
+  for (let col = 0; col < totalCols; col++) {
+    const td = document.createElement('td');
+
+    if (col === i) {
+      td.textContent = value;
+      td.classList.add('bg-green');
+    } else {
+      td.textContent = (col === 0 || col === 1) ? '—' : '—';
+      td.classList.add('bg-red');
     }
 
-    document.getElementById('new-game').addEventListener('click', startGame);
-    document.getElementById('search-btn').addEventListener('click', validate);
-    document.getElementById('game-search').addEventListener('keydown', e=>{
-      const btn = document.getElementById('search-btn');
-      if (e.key==='Enter' && btn.style.display!=='none') {
-        e.preventDefault();
-        validate();
-      }
-    });
+    if (col === 0) {
+      td.innerHTML = `—`;
+    }
 
-    // initial launch
-    startGame();
-  });
+    tr.appendChild(td);
+  }
+
+  detTb.appendChild(tr);
+  console.log(`💡 Indice révélé : ${label} = ${value}`);
+  document.getElementById('hint-btn').style.display = 'none';
+
+  prevLives = lives;
+lives--;
+updateLives();
+if (lives <= 0) {
+  streak = 0;
+  updateStreak();
+  document.getElementById('search-btn').style.display = 'none';
+  showBigAnswer('💀 You lose! It was:');
+}
+});
+
+
+      pickRandom(); resetSummary(); updateLives(); updateStreak(); rebuildDatalist();
+    });
   </script>
 </body>
 </html>
