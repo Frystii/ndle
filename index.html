@@ -3,290 +3,112 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Guess the Nintendo Game !</title>
+  <title>Speedrun Mode</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f4f4f4; color: #333; margin: 0; padding: 20px; }
-    .container { width: 80%; margin: 40px auto; background: #fff; border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 20px; }
+    body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
+    .container { max-width: 800px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; }
     h1 { text-align: center; }
-    button, input { display: block; margin: 10px auto; padding: 10px; font-size: 16px; }
-    button { border: none; background: #0066cc; color: #fff; border-radius: 4px; cursor: pointer; }
-    button:hover { background: #005bb5; }
-    input { width: 80%; border: 1px solid #ccc; border-radius: 4px; }
-    #game-info { margin: 20px 0; }
-    #lives, #streak, #best-streak { font-weight: bold; margin-top: 10px; text-align: center; }
-    #big-answer { display: none; padding: 20px; background: #ffe; border: 2px solid #e91e63;
-                  border-radius: 8px; margin: 20px 0; text-align: center; }
-    #big-answer h2 { margin-top: 0; color: #e91e63; }
-    .search-box { margin: 20px auto; padding: 10px; background: #eaeaea; border-radius: 6px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: middle; }
-    th { background: #f0f0f0; }
-    img.cover { width: 50px; height: auto; border-radius: 4px; background: #eee; }
-    .bg-green  { background: #c8e6c9; }
-    .bg-yellow { background: #fff9c4; }
-    .bg-red    { background: #ffcdd2; }
+    #timer, #score { font-size: 1.5em; text-align: center; margin: 10px 0; }
+    input, button { padding: 10px; font-size: 16px; width: 80%; margin: 10px auto; display: block; }
+    button { background: #28a745; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #218838; }
+    #result { text-align: center; margin-top: 20px; font-size: 1.2em; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Guess the Nintendo Game</h1>
-    <button id="new-game">New Random Game</button>
-    <div id="lives">Lives: 10</div>
-    <div id="streak">Streak: 0</div>
-    <div id="best-streak">Best: 0</div>
-    <div id="game-info"></div>
-    <div id="big-answer"></div>
-
-    <div class="search-box">
-      <input id="game-search" list="games-list" placeholder="Search games...">
-      <button id="search-btn">Validate</button>
-      <table id="search-results">
-        <thead>
-          <tr>
-            <th>Cover</th>
-            <th>Name (ID)</th>
-            <th>Year</th>
-            <th>Companies</th>
-            <th>Genres</th>
-            <th>Platforms</th>
-            <th>Game Modes</th>
-            <th>Franchises</th>
-            <th>Themes</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
+    <h1>Speedrun: Guess as many games as you can!</h1>
+    <div id="timer">Time: 180s</div>
+    <div id="score">Score: 0</div>
+    <input id="game-input" list="games-list" placeholder="Type game name...">
+    <button id="guess-btn">Submit</button>
+    <div id="result"></div>
   </div>
+
+  <datalist id="games-list"></datalist>
 
   <script src="nintendo_games_slim.js"></script>
   <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    let currentGame, lives, streak = 0;
-    const PLACEHOLDER_COVER = 'https://via.placeholder.com/50x50?text=?';
-    let bestStreak = parseInt(localStorage.getItem('bestStreak') || '0', 10);
+    document.addEventListener('DOMContentLoaded', () => {
+      let timeLeft = 180;
+      let score = 0;
+      let interval;
+      let currentGame;
+      const input = document.getElementById('game-input');
+      const btn = document.getElementById('guess-btn');
+      const resultDiv = document.getElementById('result');
+      const guessedIds = new Set();
 
-    function formatDate(ts) {
-      return ts ? new Date(ts * 1000).toISOString().slice(0,10) : '';
-    }
-    function extractYear(str) {
-      return str ? parseInt(str.slice(0,4),10) : null;
-    }
-    function updateLives() {
-      document.getElementById('lives').textContent = 'Lives: ' + lives;
-    }
-    function updateStreakDisplay() {
-      document.getElementById('streak').textContent     = 'Streak: ' + streak;
-      document.getElementById('best-streak').textContent = 'Best: '   + bestStreak;
-    }
-    function showGameInfo() {
-      const g = currentGame;
-      const year = extractYear(formatDate(g.first_release_date)) || '—';
-      const comps   = [...new Set((g.involved_companies||[]).map(ic=>ic.company?.name).filter(Boolean))].join(', ');
-      const genres  = (g.genres||[]).map(x=>x.name).join(', ');
-      const plats   = (g.platforms||[]).map(x=>x.name).join(', ');
-      const modes   = (g.game_modes||[]).map(x=>x.name).join(', ');
-      const frchs   = (g.franchises||[]).map(x=>x.name).join(', ');
-      const thms    = (g.themes||[]).map(x=>x.name).join(', ');
-      document.getElementById('game-info').innerHTML = `
-        <div><strong>Name:</strong> ${g.name} (${g.id})</div>
-        <div><strong>Year:</strong> ${year}</div>
-        ${comps?`<div><strong>Companies:</strong> ${comps}</div>`:``}
-        ${genres?`<div><strong>Genres:</strong> ${genres}</div>`:``}
-        ${plats?`<div><strong>Platforms:</strong> ${plats}</div>`:``}
-        ${modes?`<div><strong>Game Modes:</strong> ${modes}</div>`:``}
-        ${frchs?`<div><strong>Franchises:</strong> ${frchs}</div>`:``}
-        ${thms?`<div><strong>Themes:</strong> ${thms}</div>`:``}
-      `;
-    }
-    function hideBigAnswer() {
-      document.getElementById('big-answer').style.display = 'none';
-    }
-    function showBigAnswerGame(game, title) {
-      const year = extractYear(formatDate(game.first_release_date)) || '—';
-      const comps   = [...new Set((game.involved_companies||[]).map(ic=>ic.company?.name).filter(Boolean))].join(', ');
-      const genres  = (game.genres||[]).map(x=>x.name).join(', ');
-      const plats   = (game.platforms||[]).map(x=>x.name).join(', ');
-      const modes   = (game.game_modes||[]).map(x=>x.name).join(', ');
-      const frchs   = (game.franchises||[]).map(x=>x.name).join(', ');
-      const thms    = (game.themes||[]).map(x=>x.name).join(', ');
-      const ba = document.getElementById('big-answer');
-      ba.innerHTML = `
-        <h2>${title}</h2>
-        <p><strong>Name:</strong> ${game.name} (${game.id})</p>
-        <p><strong>Year:</strong> ${year}</p>
-        ${comps?`<p><strong>Companies:</strong> ${comps}</p>`:``}
-        ${genres?`<p><strong>Genres:</strong> ${genres}</p>`:``}
-        ${plats?`<p><strong>Platforms:</strong> ${plats}</p>`:``}
-        ${modes?`<p><strong>Game Modes:</strong> ${modes}</p>`:``}
-        ${frchs?`<p><strong>Franchises:</strong> ${frchs}</p>`:``}
-        ${thms?`<p><strong>Themes:</strong> ${thms}</p>`:``}
-      `;
-      ba.style.display = 'block';
-    }
-
-    function pickRandom() {
-      currentGame = games[Math.floor(Math.random() * games.length)];
-    }
-
-    function rebuildDatalist() {
-      const old = document.getElementById('games-list');
-      if (old) old.remove();
-      const dl = document.createElement('datalist');
-      dl.id = 'games-list';
-      const guessed = new Set(
-        Array.from(document.querySelectorAll('#search-results tbody tr td:nth-child(2)'))
-          .map(td => td.textContent.replace(/\s*\(\d+\)$/, ''))
-      );
-      games.forEach(g => {
-        if (!guessed.has(g.name)) {
-          const o = document.createElement('option');
-          o.value = g.name;
-          dl.append(o);
-        }
-      });
-      document.body.append(dl);
-    }
-
-    function startGame() {
-      // si on relance AVANT d'avoir gagné/perdu => reset streak
-      if (document.getElementById('search-btn').style.display !== 'none') {
-        streak = 0;
+      function pickRandom() {
+        let pool = games.filter(g => !guessedIds.has(g.id));
+        currentGame = pool[Math.floor(Math.random() * pool.length)];
       }
-      updateStreakDisplay();
 
-      pickRandom();
-      lives = 10;
-      updateLives();
-      hideBigAnswer();
-      document.querySelector('#search-results tbody').innerHTML = '';
-      rebuildDatalist();
-      document.getElementById('search-btn').style.display = 'block';
-      showGameInfo();
-      window.scrollTo({ top:0, behavior:'smooth' });
-    }
+      function updateTimer() {
+        document.getElementById('timer').textContent = `Time: ${timeLeft}s`;
+      }
 
-    function colorArr(td, guessArr = [], answerSet = new Set()) {
-      const any = Array.isArray(guessArr) && guessArr.some(v => answerSet.has(v));
-      const all = Array.isArray(guessArr) && guessArr.length === answerSet.size && guessArr.every(v=>answerSet.has(v));
-      td.classList.add(all ? 'bg-green' : any ? 'bg-yellow' : 'bg-red');
-    }
+      function updateScore() {
+        document.getElementById('score').textContent = `Score: ${score}`;
+      }
 
-    function validate() {
-      const btn = document.getElementById('search-btn');
-      if (btn.style.display === 'none') return;
-      const inp = document.getElementById('game-search');
-      const guess = inp.value.trim();
-      inp.value = '';
-      const game = games.find(g => g.name === guess);
-      if (!game) return console.error('No match:', guess);
-      const tbody = document.querySelector('#search-results tbody');
-      if ([...tbody.querySelectorAll('tr')].some(tr=>tr.cells[1].textContent.includes(`(${game.id})`)))
-        return console.error('Already guessed:', guess);
+      function endGame() {
+        clearInterval(interval);
+        input.disabled = true;
+        btn.disabled = true;
+        resultDiv.innerHTML = `<strong>⏰ Time's up! Final score: ${score}</strong>`;
+      }
 
-      const guessYear  = extractYear(formatDate(game.first_release_date));
-      const answerYear = extractYear(formatDate(currentGame.first_release_date));
-      const guessArrs  = [
-        [...new Set((game.involved_companies||[]).map(ic=>ic.company?.name).filter(Boolean))],
-        (game.genres||[]).map(x=>x.name),
-        (game.platforms||[]).map(x=>x.name),
-        (game.game_modes||[]).map(x=>x.name),
-        (game.franchises||[]).map(x=>x.name),
-        (game.themes||[]).map(x=>x.name)
-      ];
-      const answerSets = [
-        new Set((currentGame.involved_companies||[]).map(ic=>ic.company?.name).filter(Boolean)),
-        new Set((currentGame.genres||[]).map(x=>x.name)),
-        new Set((currentGame.platforms||[]).map(x=>x.name)),
-        new Set((currentGame.game_modes||[]).map(x=>x.name)),
-        new Set((currentGame.franchises||[]).map(x=>x.name)),
-        new Set((currentGame.themes||[]).map(x=>x.name))
-      ];
-
-      // création de la ligne de résultat
-      const row = document.createElement('tr');
-      const coverUrl = game.cover?.url ? `https:${game.cover.url}` : PLACEHOLDER_COVER;
-      const cells = [
-        `<img class="cover" src="${coverUrl}">`,
-        `${game.name} (${game.id})`,
-        guessYear !== null ? guessYear : '—',
-        ...guessArrs.map(arr => arr.join(', '))
-      ];
-      cells.forEach(html=>{
-        const td = document.createElement('td');
-        td.innerHTML = html;
-        td.style.opacity = 0;
-        row.append(td);
-      });
-      tbody.append(row);
-
-      // animation + coloration
-      row.querySelectorAll('td').forEach((td,i)=>{
-        setTimeout(()=>{
-          td.style.transition = 'opacity .2s';
-          td.style.opacity = 1;
-          if (i===1) {
-            const correct = (game.name === currentGame.name);
-            td.classList.add(correct?'bg-green':'bg-red');
-            row.cells[0].classList.add(correct?'bg-green':'bg-red');
-            if (correct) {
-              // victoire → incrémente streak
-              streak++;
-              if (streak>bestStreak) {
-                bestStreak = streak;
-                localStorage.setItem('bestStreak',bestStreak);
-              }
-              updateStreakDisplay();
-
-              btn.style.display = 'none';
-              showBigAnswerGame(currentGame,'🎉 You found it!');
-            }
-          }
-          else if (i===2) {
-            if (guessYear===answerYear) {
-              td.classList.add('bg-green');
-            } else {
-              td.classList.add('bg-red');
-              td.innerHTML = `${guessYear} ${guessYear>answerYear?'▼':'▲'}`;
-            }
-          }
-          else if (i>=3) {
-            colorArr(td, guessArrs[i-3], answerSets[i-3]);
-          }
-          window.scrollTo(0,document.body.scrollHeight);
-        }, i*50);
-      });
-
-      rebuildDatalist();
-
-      // mauvaise réponse
-      if (game.name!==currentGame.name) {
-        lives--;
-        updateLives();
-        // reset streak **seulement** si on perd
-        if (lives<=0) {
-          streak = 0;
-          updateStreakDisplay();
-          btn.style.display = 'none';
-          showBigAnswerGame(currentGame,'💀 You lose! It was:');
+      function validate() {
+        const guess = input.value.trim();
+        if (guess.toLowerCase() === currentGame.name.toLowerCase()) {
+          score++;
+          timeLeft += 15;
+          guessedIds.add(currentGame.id);
+          updateScore();
+          resultDiv.textContent = `✅ Correct! It was "${currentGame.name}" (+15s)`;
+          pickRandom();
+          input.value = '';
+        } else {
+          resultDiv.textContent = `❌ Nope! Try again.`;
         }
       }
-    }
 
-    document.getElementById('new-game').addEventListener('click', startGame);
-    document.getElementById('search-btn').addEventListener('click', validate);
-    document.getElementById('game-search').addEventListener('keydown', e=>{
-      const btn = document.getElementById('search-btn');
-      if (e.key==='Enter' && btn.style.display!=='none') {
-        e.preventDefault();
-        validate();
+      function startGame() {
+        guessedIds.clear();
+        pickRandom();
+        updateTimer();
+        updateScore();
+        interval = setInterval(() => {
+          timeLeft--;
+          updateTimer();
+          if (timeLeft <= 0) endGame();
+        }, 1000);
       }
+
+      function buildDatalist() {
+        const dl = document.getElementById('games-list');
+        dl.innerHTML = '';
+        [...games]
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .forEach(g => {
+            const opt = document.createElement('option');
+            opt.value = g.name;
+            dl.appendChild(opt);
+          });
+      }
+
+      btn.addEventListener('click', validate);
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          validate();
+        }
+      });
+
+      buildDatalist();
+      startGame();
     });
-
-    // lancement initial
-    startGame();
-  });
   </script>
 </body>
 </html>
