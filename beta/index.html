@@ -279,7 +279,6 @@
 
       function pickRandom() {
         currentGame = games[Math.floor(Math.random() * games.length)];
-        console.log(`Picked game: ${currentGame.name} (${currentGame.id})`);
       }
 
       function rebuildDatalist() {
@@ -464,7 +463,6 @@
 
       document.getElementById('new-game').addEventListener('click', () => {
         const found = document.querySelector('#summary-row td:nth-child(2)').classList.contains('bg-green');
-        console.log("found", found);
         if (lives < 10 && !found) {
           streak = 0;
           looseStreak++;
@@ -555,7 +553,6 @@
         }
 
         detTb.appendChild(tr);
-        console.log(`💡 Indice révélé : ${label} = ${value}`);
         document.getElementById('hint-btn').style.display = 'none';
 
         prevLives = lives;
