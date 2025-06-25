@@ -234,7 +234,7 @@
         const ba = document.getElementById('big-answer');
         const coverUrl = g.cover?.url ? 'https:' + g.cover.url : PLACEHOLDER_COVER;
 
-ba.innerHTML = `
+        ba.innerHTML = `
   <div style="display: flex; align-items: flex-start; gap: 20px;">
     <img src="${coverUrl}" alt="Cover" style="width: 125px; height: auto; border-radius: 8px; background: #eee; flex-shrink: 0;">
     <div style="text-align: left; flex: 1;">
@@ -271,6 +271,7 @@ ba.innerHTML = `
 
       function pickRandom() {
         currentGame = games[Math.floor(Math.random() * games.length)];
+        console.log(`Picked game: ${currentGame.name} (${currentGame.id})`);
       }
 
       function rebuildDatalist() {
@@ -353,14 +354,24 @@ ba.innerHTML = `
           const ok = guess.length === ans.size && guess.every(v => ans.has(v));
           if (i === 2 && !ok) {
             const targetYear = [...ans][0];
-            const lower = Math.max(...yearGuesses.filter(y => y < targetYear), 1980);
+            const lower = Math.max(...yearGuesses.filter(y => y < targetYear), 1950);
             const upper = Math.min(...yearGuesses.filter(y => y > targetYear), 2026);
-            td.textContent = `${lower} - ${upper}`;
-            // reste en rouge
+            const intervalSize = upper - lower;
+
+            if (intervalSize <= 2 && lower < targetYear && upper > targetYear) {
+              td.textContent = `${targetYear}`;
+              td.classList.remove('bg-red');
+              td.classList.add('bg-green');
+            } else {
+              td.textContent = `${lower} - ${upper}`;
+              td.classList.remove('bg-green');
+              td.classList.add('bg-red');
+            }
           } else if (ok) {
             td.textContent = guess.join(', ');
             td.classList.replace('bg-red', 'bg-green');
           }
+
         });
 
         const tr = document.createElement('tr');
