@@ -6,9 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Easy guess the Nintendo Game</title>
   <style>
+    @font-face {
+  font-family: 'Pretendo';
+  src: url('../fonts/Pretendo.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
     body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
+      font-family: 'Arial', sans-serif;
+      background: #de0000;
       color: #333;
       margin: 0;
       padding: 20px;
@@ -17,7 +23,8 @@
     .container {
       width: 80%;
       margin: 40px auto;
-      background: #fff;
+      margin-top: 10px;
+      background: #E61B23;
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       padding: 20px;
@@ -37,14 +44,14 @@
 
     button {
       border: none;
-      background: #0066cc;
-      color: #fff;
+      background: #ffffff;
+      color: #000000;
       border-radius: 4px;
       cursor: pointer;
     }
 
     button:hover {
-      background: #005bb5;
+      background: #c5bcbc;
     }
 
     input {
@@ -61,6 +68,7 @@
       font-weight: bold;
       margin-top: 10px;
       text-align: center;
+      color: #ffffff;
     }
 
     #big-answer {
@@ -137,12 +145,24 @@
     table td {
       font-size: 13px;
     }
+
+    .logo-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .logo {
+      height: 100px;
+      object-fit: contain;
+    }
   </style>
 </head>
 
 <body>
   <div class="container">
-    <h1>Guess the Nintendo Game</h1>
+    <div class="logo-header">
+      <img src="../Nintendle.png" alt="Nintendle logo" class="logo">
+    </div>
     <button id="new-game">New Random Game</button>
     <div id="lives">Lives: 10</div>
     <div id="streak">Streak: 0</div>
@@ -569,9 +589,9 @@
         }
       });
 
-
       pickRandom(); resetSummary(); updateLives(); updateStreak(); rebuildDatalist();
     });
+
   </script>
 </body>
 
