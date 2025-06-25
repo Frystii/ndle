@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Guess the Nintendo Game</title>
+  <title>Easy guess the Nintendo Game</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -200,15 +200,15 @@
     </div>
   </div>
 
-  <script src="../nintendo_games_slim.js"></script>
+  <script src="games_fully_cleaned.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       let currentGame, lives = 10, prevLives = 10, streak = 0;
       let looseStreak = 0;
-      let bestLooseStreak = parseInt(localStorage.getItem('bestLooseStreak') || '0', 10);
+      let bestLooseStreak = parseInt(localStorage.getItem('bestLooseStreakEasy') || '0', 10);
       const PLACEHOLDER_COVER = 'https://via.placeholder.com/50x50?text=?';
-      let bestStreak = parseInt(localStorage.getItem('bestStreak') || '0', 10);
+      let bestStreak = parseInt(localStorage.getItem('bestStreakEasy') || '0', 10);
       let yearGuesses = [];
 
       function formatDate(ts) { return ts ? new Date(ts * 1000).toISOString().slice(0, 10) : ''; }
@@ -279,7 +279,6 @@
 
       function pickRandom() {
         currentGame = games[Math.floor(Math.random() * games.length)];
-        console.log(`Picked game: ${currentGame.name} (${currentGame.id})`);
       }
 
       function rebuildDatalist() {
@@ -410,7 +409,7 @@
                 streak++;
                 looseStreak = 0;
                 bestStreak = Math.max(bestStreak, streak);
-                localStorage.setItem('bestStreak', bestStreak);
+                localStorage.setItem('bestStreakEasy', bestStreak);
                 updateStreak();
                 document.getElementById('search-btn').style.display = 'none';
                 showBigAnswer('🎉 You found it!');
@@ -453,7 +452,7 @@
           streak = 0;
           looseStreak++;
           bestLooseStreak = Math.max(bestLooseStreak, looseStreak);
-          localStorage.setItem('bestLooseStreak', bestLooseStreak);
+          localStorage.setItem('bestLooseStreakEasy', bestLooseStreak);
           updateStreak();
           document.getElementById('search-btn').style.display = 'none';
           document.getElementById('hint-btn').style.display = 'none';
@@ -464,12 +463,11 @@
 
       document.getElementById('new-game').addEventListener('click', () => {
         const found = document.querySelector('#summary-row td:nth-child(2)').classList.contains('bg-green');
-        console.log("found", found);
         if (lives < 10 && !found) {
           streak = 0;
           looseStreak++;
           bestLooseStreak = Math.max(bestLooseStreak, looseStreak);
-          localStorage.setItem('bestLooseStreak', bestLooseStreak);
+          localStorage.setItem('bestLooseStreakEasy', bestLooseStreak);
         }
         updateStreak();
         pickRandom();
@@ -555,7 +553,6 @@
         }
 
         detTb.appendChild(tr);
-        console.log(`💡 Indice révélé : ${label} = ${value}`);
         document.getElementById('hint-btn').style.display = 'none';
 
         prevLives = lives;
@@ -565,7 +562,7 @@
           streak = 0;
           looseStreak++;
           bestLooseStreak = Math.max(bestLooseStreak, looseStreak);
-          localStorage.setItem('bestLooseStreak', bestLooseStreak);
+          localStorage.setItem('bestLooseStreakEasy', bestLooseStreak);
           updateStreak();
           document.getElementById('search-btn').style.display = 'none';
           showBigAnswer('💀 You lose! It was:');
