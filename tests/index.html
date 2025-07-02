@@ -227,9 +227,9 @@
     document.addEventListener('DOMContentLoaded', () => {
       let currentGame, lives = 10, prevLives = 10, streak = 0;
       let looseStreak = 0;
-      let bestLooseStreak = parseInt(localStorage.getItem('bestLooseStreakEasy') || '0', 10);
+      let bestLooseStreak = parseInt(localStorage.getItem('bestLooseStreakTests') || '0', 10);
       const PLACEHOLDER_COVER = 'https://via.placeholder.com/50x50?text=?';
-      let bestStreak = parseInt(localStorage.getItem('bestStreakEasy') || '0', 10);
+      let bestStreak = parseInt(localStorage.getItem('bestStreakTests') || '0', 10);
       let yearGuesses = [];
 
       function formatDate(ts) { return ts ? new Date(ts * 1000).toISOString().slice(0, 10) : ''; }
@@ -437,7 +437,7 @@
                 streak++;
                 looseStreak = 0;
                 bestStreak = Math.max(bestStreak, streak);
-                localStorage.setItem('bestStreakEasy', bestStreak);
+                localStorage.setItem('bestStreakTests', bestStreak);
                 updateStreak();
                 document.getElementById('search-btn').style.display = 'none';
                 showBigAnswer('🎉 You found it!');
@@ -480,7 +480,7 @@
           streak = 0;
           looseStreak++;
           bestLooseStreak = Math.max(bestLooseStreak, looseStreak);
-          localStorage.setItem('bestLooseStreakEasy', bestLooseStreak);
+          localStorage.setItem('bestLooseStreakTests', bestLooseStreak);
           updateStreak();
           document.getElementById('search-btn').style.display = 'none';
           document.getElementById('hint-btn').style.display = 'none';
@@ -495,7 +495,7 @@
           streak = 0;
           looseStreak++;
           bestLooseStreak = Math.max(bestLooseStreak, looseStreak);
-          localStorage.setItem('bestLooseStreakEasy', bestLooseStreak);
+          localStorage.setItem('bestLooseStreakTests', bestLooseStreak);
         }
         updateStreak();
         pickRandom();
@@ -592,7 +592,7 @@
           streak = 0;
           looseStreak++;
           bestLooseStreak = Math.max(bestLooseStreak, looseStreak);
-          localStorage.setItem('bestLooseStreakEasy', bestLooseStreak);
+          localStorage.setItem('bestLooseStreakTests', bestLooseStreak);
           updateStreak();
           document.getElementById('search-btn').style.display = 'none';
           showBigAnswer('💀 You lose! It was:');
