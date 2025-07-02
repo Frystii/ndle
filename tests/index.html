@@ -302,6 +302,7 @@
         currentGame = games[Math.floor(Math.random() * games.length)];
         console.log("Random game picked:");
         console.log(currentGame);
+        console.log("current date:", formatDate(currentGame.first_release_date));
       }
 
       function rebuildDatalist() {
