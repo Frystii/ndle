@@ -300,6 +300,8 @@
 
       function pickRandom() {
         currentGame = games[Math.floor(Math.random() * games.length)];
+        console.log("Random game picked:");
+        console.log(currentGame);
       }
 
       function rebuildDatalist() {
@@ -528,6 +530,8 @@
             possibleHints.push({ index: i, label });
           }
         });
+        console.log('Possible hints:');
+        console.log(possibleHints);
 
         if (possibleHints.length === 0) return;
 
